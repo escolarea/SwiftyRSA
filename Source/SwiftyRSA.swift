@@ -113,12 +113,12 @@ public enum SwiftyRSA {
     /// - Returns: A touple of a private and public key
     /// - Throws: Throws and error if the tag cant be parsed or if keygeneration fails
     @available(iOS 10.0, watchOS 3.0, tvOS 10.0, *)
-    public static func generateRSAKeyPair(sizeInBits size: Int) throws -> (privateKey: PrivateKey, publicKey: PublicKey) {
-        return try generateRSAKeyPair(sizeInBits: size, applyUnitTestWorkaround: false)
+    public static func generateRSAKeyPair(sizeInBits size: Int, accessControl:SecAccessControl? = nil) throws -> (privateKey: PrivateKey, publicKey: PublicKey) {
+        return try generateRSAKeyPair(sizeInBits: size, applyUnitTestWorkaround: false, accessControl:accessControl)
     }
     
     @available(iOS 10.0, watchOS 3.0, tvOS 10.0, *)
-    static func generateRSAKeyPair(sizeInBits size: Int, applyUnitTestWorkaround: Bool = false) throws -> (privateKey: PrivateKey, publicKey: PublicKey) {
+    static func generateRSAKeyPair(sizeInBits size: Int, applyUnitTestWorkaround: Bool = false, accessControl:SecAccessControl? = nil) throws -> (privateKey: PrivateKey, publicKey: PublicKey) {
       
         guard let tagData = UUID().uuidString.data(using: .utf8) else {
             throw SwiftyRSAError.stringToDataConversionFailed
@@ -129,13 +129,19 @@ public enum SwiftyRSA {
         // @see https://stackoverflow.com/q/48414685/646960
         let isPermanent = applyUnitTestWorkaround ? false : true
         
+        var privateKeyAttrs: [CFString: Any] = [
+            kSecAttrIsPermanent: isPermanent,
+            kSecAttrApplicationTag: tagData
+        ]
+        
+        if let access = accessControl {
+            privateKeyAttrs[kSecAttrAccessControl] = access
+        }
+        
         let attributes: [CFString: Any] = [
             kSecAttrKeyType: kSecAttrKeyTypeRSA,
             kSecAttrKeySizeInBits: size,
-            kSecPrivateKeyAttrs: [
-                kSecAttrIsPermanent: isPermanent,
-                kSecAttrApplicationTag: tagData
-            ]
+            kSecPrivateKeyAttrs: privateKeyAttrs
         ]
         
         var error: Unmanaged<CFError>?
